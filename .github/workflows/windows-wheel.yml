@@ -1,0 +1,38 @@
+name: Windows wheel
+
+# Builds a Windows wheel (C++ pybind11 + Rust extensions) for the CVAT desktop app.
+on:
+  push:
+    branches: [windows-wheel]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        python-version: ["3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Build wheel
+        run: |
+          python -m pip install --upgrade pip wheel
+          python -m pip wheel . --no-deps -w dist
+
+      - name: Smoke test
+        shell: pwsh
+        run: |
+          python -m pip install (Get-ChildItem dist\*.whl).FullName
+          python -c "import datumaro, datumaro._capi, datumaro.rust_api; print('datumaro', datumaro.__version__)"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: datumaro-win-py${{ matrix.python-version }}
+          path: dist/*.whl
